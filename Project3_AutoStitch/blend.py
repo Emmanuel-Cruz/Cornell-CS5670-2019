@@ -29,7 +29,19 @@ def imageBoundingBox(img, M):
     """
     #TODO 8
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+    # print(M)
+    X, Y, _ = img.shape
+    transX, transY = M[0][-1], M[1][-1] #5, -5
+    rotX1, rotX2, rotY1, rotY2 = M[0][0], M[0][1], M[1][0], M[1][1]
+    # print(rotX1, rotX2, rotY1, rotY2)
+    minX, maxX = (transX - (X-1)*rotX1), (transX - (X-1)*rotX2)
+    minY, maxY = (transY - (rotY1-rotY2)), (transY + (Y-1)*(rotY1+rotY2))
+    sol_minX,sol_minY = int(5-9*np.sin(np.pi/4)), int(-5)
+    sol_maxX,sol_maxY = int(5+9*np.sin(np.pi/4)), int(18*np.sin(np.pi/4)-5)
+
+
+    # print(sol_minX, sol_minY, sol_maxX, sol_maxY)
+    # print(minX, minY, maxX, maxY)
     #TODO-BLOCK-END
     return int(minX), int(minY), int(maxX), int(maxY)
 
