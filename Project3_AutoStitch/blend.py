@@ -30,18 +30,19 @@ def imageBoundingBox(img, M):
     #TODO 8
     #TODO-BLOCK-BEGIN
     # print(M)
-    X, Y, _ = img.shape
-    transX, transY = M[0][-1], M[1][-1] #5, -5
-    rotX1, rotX2, rotY1, rotY2 = M[0][0], M[0][1], M[1][0], M[1][1]
-    # print(rotX1, rotX2, rotY1, rotY2)
-    minX, maxX = (transX - (X-1)*rotX1), (transX - (X-1)*rotX2)
-    minY, maxY = (transY - (rotY1-rotY2)), (transY + (Y-1)*(rotY1+rotY2))
-    sol_minX,sol_minY = int(5-9*np.sin(np.pi/4)), int(-5)
-    sol_maxX,sol_maxY = int(5+9*np.sin(np.pi/4)), int(18*np.sin(np.pi/4)-5)
+    
+    resultsX = np.zeros(len(img) * len(img[0]))
+    resultsY = np.zeros(len(img) * len(img[0]))
+    for i in range(len(img)):
+        for j in range(len(img[0])):
+            result = np.matmul(M, np.array([j, i, 1]))
+            resultsX[i*len(img[0]) + j] = result[0]/float(result[2])
+            resultsY[i*len(img[0]) + j] = result[1]/float(result[2])
+    minX = np.min(resultsX)
+    minY = np.min(resultsY)
+    maxX = np.max(resultsX)
+    maxY = np.max(resultsY)
 
-
-    # print(sol_minX, sol_minY, sol_maxX, sol_maxY)
-    # print(minX, minY, maxX, maxY)
     #TODO-BLOCK-END
     return int(minX), int(minY), int(maxX), int(maxY)
 
@@ -61,7 +62,36 @@ def accumulateBlend(img, acc, M, blendWidth):
     # BEGIN TODO 10
     # Fill in this routine
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+    minX, minY, maxX, maxY = imageBoundingBox(img, M)
+    if (maxX - minX) < 2*blendWidth:
+        blendWidth = (maxX - minX) / 2 - 1
+    alpha = np.concatenate((np.linspace(0., 1., blendWidth),
+                            np.ones(maxX - minX - 2*blendWidth),
+                            np.linspace(1., 0., blendWidth)))
+
+    withalpha = np.ones((img.shape[0], img.shape[1], 4))
+    
+    withalpha[:,:,0] = img[:,:,0]
+    withalpha[:,:,1] = img[:,:,1]
+    withalpha[:,:,2] = img[:,:,2]
+
+    withalpha = np.pad(withalpha, ((2,2), (2,2), (0,0)), 'edge')
+
+    M_inv = np.linalg.inv(M)
+
+    warped = cv2.warpPerspective(withalpha, M_inv, (acc.shape[1],acc.shape[0]), flags=(cv2.WARP_INVERSE_MAP + cv2.INTER_NEAREST))
+
+    for column in range(minX, maxX):
+        warped[:, column, :3] = warped[:, column, :3] * alpha[column - minX]  
+
+        vals = np.full((warped.shape[0]), alpha[column - minX])
+        warped[:, column, 3] = vals
+
+        for row in range(minY, maxY):
+            if(np.array_equal(warped[row, column, :3], [0,0,0])):
+                warped[row, column, 3] = 0.0; 
+            acc[row, column] += warped[row, column] 
+
     #TODO-BLOCK-END
     # END TODO
 
@@ -77,7 +107,12 @@ def normalizeBlend(acc):
     # BEGIN TODO 11
     # fill in this routine..
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+    img = np.zeros((len(acc), len(acc[0]), 4))
+    for i in range(len(acc)):
+        for j in range(len(acc[0])):
+            if acc[i,j,3] > 0:
+                img[i,j,:3] = (acc[i,j,:3] / (acc[i,j,3])).astype(int)
+                img[i,j,3] = 1
     #TODO-BLOCK-END
     # END TODO
     return img
@@ -101,8 +136,9 @@ def getAccSize(ipv):
     """
 
     # Compute bounding box for the mosaic
-    minX = sys.maxint
-    minY = sys.maxint
+    # Note: maxint was changed to maxsize for Python 3 compatibility
+    minX = sys.maxsize
+    minY = sys.maxsize
     maxX = 0
     maxY = 0
     channels = -1
@@ -119,7 +155,11 @@ def getAccSize(ipv):
         # BEGIN TODO 9
         # add some code here to update minX, ..., maxY
         #TODO-BLOCK-BEGIN
-        raise Exception("TODO in blend.py not implemented")
+        temp_minX, temp_minY, temp_maxX, temp_maxY = imageBoundingBox(img, M)
+        minX = min(minX, temp_minX)
+        minY = min(minY, temp_minY)
+        maxX = max(maxX, temp_maxX)
+        maxY = max(maxY, temp_maxY)
         #TODO-BLOCK-END
         # END TODO
 
@@ -211,7 +251,8 @@ def blendImages(ipv, blendWidth, is360=False, A_out=None):
     # Note: warpPerspective does forward mapping which means A is an affine
     # transform that maps accumulator coordinates to final panorama coordinates
     #TODO-BLOCK-BEGIN
-    raise Exception("TODO in blend.py not implemented")
+    if is360 == True:
+        A = computeDrift(x_init, y_init, x_final, y_final, width)
     #TODO-BLOCK-END
     # END TODO
 
